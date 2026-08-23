@@ -12,21 +12,7 @@ import {
   UpdateCategoryDto,
 } from './blog.types';
 
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
-    .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
-    .replace(/[ìíịỉĩ]/g, 'i')
-    .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
-    .replace(/[ùúụủũưừứựửữ]/g, 'u')
-    .replace(/[ỳýỵỷỹ]/g, 'y')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { slugify } from '../../utils/slug';
 
 export const blogService = {
   async findAll(query: BlogQueryDto) {
@@ -60,10 +46,13 @@ export const blogService = {
   },
 
   async findBySlug(slug: string): Promise<Blog> {
-    const blog = await Blog.findOne({
-      where: { slug },
-      include: [{ model: BlogCategory, as: 'categories', through: { attributes: [] } }],
-    });
+    const needle = slugify(decodeURIComponent(slug));
+    const include = [{ model: BlogCategory, as: 'categories', through: { attributes: [] } }];
+    const exact = await Blog.findOne({ where: { slug: needle }, include });
+    if (exact) return exact;
+
+    const rows = await Blog.findAll({ include });
+    const blog = rows.find((row) => slugify(row.slug) === needle);
     if (!blog) throw new AppError('Blog not found', 404);
     return blog;
   },
@@ -77,7 +66,7 @@ export const blogService = {
   },
 
   async create(dto: CreateBlogDto): Promise<Blog> {
-    const slug = dto.slug || generateSlug(dto.title);
+    const slug = slugify(dto.slug || dto.title) || slugify(dto.title);
     const existing = await Blog.findOne({ where: { slug } });
     if (existing) throw new AppError('Slug already exists', 409);
 
@@ -101,8 +90,9 @@ export const blogService = {
   async update(id: number, dto: UpdateBlogDto): Promise<Blog> {
     const blog = await this.findById(id);
 
-    if (dto.slug && dto.slug !== blog.slug) {
-      const existing = await Blog.findOne({ where: { slug: dto.slug } });
+    const nextSlug = dto.slug ? slugify(dto.slug) : blog.slug;
+    if (nextSlug !== blog.slug) {
+      const existing = await Blog.findOne({ where: { slug: nextSlug } });
       if (existing) throw new AppError('Slug already exists', 409);
     }
 
@@ -110,6 +100,7 @@ export const blogService = {
 
     await blog.update({
       ...dto,
+      slug: nextSlug,
       publishedAt: wasPublished ? new Date() : blog.publishedAt,
     });
 
@@ -153,18 +144,19 @@ export const blogService = {
   },
 
   async createCategory(dto: CreateCategoryDto): Promise<BlogCategory> {
-    const slug = dto.slug || generateSlug(dto.name);
+    const slug = slugify(dto.slug || dto.name);
     return BlogCategory.create({ ...dto, slug });
   },
 
   async updateCategory(id: number, dto: UpdateCategoryDto): Promise<BlogCategory> {
     const cat = await BlogCategory.findByPk(id);
     if (!cat) throw new AppError('Category not found', 404);
-    if (dto.slug && dto.slug !== cat.slug) {
-      const existing = await BlogCategory.findOne({ where: { slug: dto.slug } });
+    const nextSlug = dto.slug ? slugify(dto.slug) : dto.name ? slugify(dto.name) : cat.slug;
+    if (nextSlug !== cat.slug) {
+      const existing = await BlogCategory.findOne({ where: { slug: nextSlug } });
       if (existing) throw new AppError('Slug already exists', 409);
     }
-    await cat.update({ ...dto, slug: dto.slug || (dto.name ? generateSlug(dto.name) : cat.slug) });
+    await cat.update({ ...dto, slug: nextSlug });
     return cat;
   },
 
@@ -172,5 +164,34 @@ export const blogService = {
     const cat = await BlogCategory.findByPk(id);
     if (!cat) throw new AppError('Category not found', 404);
     await cat.destroy();
+  },
+
+  async getSyncIndex() {
+    const categories = await BlogCategory.findAll({ order: [['id', 'ASC']] });
+    const categoriesHash = JSON.stringify(
+      categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        color: c.color,
+        description: c.description,
+      }))
+    );
+
+    const blogs = await Blog.findAll({
+      where: { status: 'published' },
+      include: [{ model: BlogCategory, as: 'categories', through: { attributes: [] } }],
+      order: [['id', 'ASC']],
+    });
+
+    return {
+      categoriesHash,
+      posts: blogs.map((blog) => ({
+        id: blog.id,
+        slug: slugify(blog.slug),
+        updatedAt: blog.updatedAt,
+        categoryIds: (blog.categories ?? []).map((c) => c.id as number),
+      })),
+    };
   },
 };

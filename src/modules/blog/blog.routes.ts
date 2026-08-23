@@ -88,6 +88,8 @@ router.get('/', blogController.findAll);
  */
 router.get('/categories', blogController.getCategories);
 
+router.get('/sync-index', blogController.getSyncIndex);
+
 /**
  * @swagger
  * /api/blogs/slug/{slug}:

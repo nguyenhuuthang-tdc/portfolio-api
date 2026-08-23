@@ -90,6 +90,15 @@ export const blogController = {
     }
   },
 
+  async getSyncIndex(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const index = await blogService.getSyncIndex();
+      sendSuccess(res, index);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const dto = CreateCategorySchema.parse(req.body);

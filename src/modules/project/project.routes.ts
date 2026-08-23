@@ -58,6 +58,8 @@ const router = Router();
  */
 router.get('/', projectController.findAll);
 
+router.get('/sync-index', projectController.getSyncIndex);
+
 /**
  * @swagger
  * /api/projects/slug/{slug}:

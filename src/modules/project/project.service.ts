@@ -1,22 +1,7 @@
 import { Project } from './project.model';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateProjectDto, UpdateProjectDto } from './project.types';
-
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
-    .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
-    .replace(/[ìíịỉĩ]/g, 'i')
-    .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
-    .replace(/[ùúụủũưừứựửữ]/g, 'u')
-    .replace(/[ỳýỵỷỹ]/g, 'y')
-    .replace(/đ/g, 'd')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
-}
+import { slugify } from '../../utils/slug';
 
 export const projectService = {
   async findAll(includeArchived = false): Promise<Project[]> {
@@ -28,7 +13,11 @@ export const projectService = {
   },
 
   async findBySlug(slug: string): Promise<Project> {
-    const project = await Project.findOne({ where: { slug } });
+    const needle = slugify(decodeURIComponent(slug));
+    const exact = await Project.findOne({ where: { slug: needle } });
+    if (exact) return exact;
+    const rows = await Project.findAll();
+    const project = rows.find((row) => slugify(row.slug) === needle);
     if (!project) throw new AppError('Project not found', 404);
     return project;
   },
@@ -40,24 +29,28 @@ export const projectService = {
   },
 
   async create(dto: CreateProjectDto): Promise<Project> {
-    const slug = dto.slug || generateSlug(dto.title);
+    const slug = slugify(dto.slug || dto.title);
     const existing = await Project.findOne({ where: { slug } });
     if (existing) throw new AppError('Slug already exists', 409);
     return Project.create({
       ...dto,
       slug,
+      thumbnail: null,
       completedAt: dto.completedAt ? new Date(dto.completedAt) : null,
     });
   },
 
   async update(id: number, dto: UpdateProjectDto): Promise<Project> {
     const project = await this.findById(id);
-    if (dto.slug && dto.slug !== project.slug) {
-      const existing = await Project.findOne({ where: { slug: dto.slug } });
+    const nextSlug = dto.slug ? slugify(dto.slug) : project.slug;
+    if (nextSlug !== project.slug) {
+      const existing = await Project.findOne({ where: { slug: nextSlug } });
       if (existing) throw new AppError('Slug already exists', 409);
     }
     await project.update({
       ...dto,
+      slug: nextSlug,
+      thumbnail: null,
       completedAt: dto.completedAt ? new Date(dto.completedAt) : project.completedAt,
     });
     return project;
@@ -72,5 +65,27 @@ export const projectService = {
     await Promise.all(
       ids.map((id, index) => Project.update({ order: index }, { where: { id } }))
     );
+  },
+
+  async getSyncIndex() {
+    const projects = await Project.findAll({ order: [['id', 'ASC']] });
+    return {
+      projects: projects.map((project) => ({
+        id: project.id,
+        slug: slugify(project.slug),
+        updatedAt: project.updatedAt,
+      })),
+    };
+  },
+
+  async repairSlugs(): Promise<void> {
+    const projects = await Project.findAll();
+    for (const project of projects) {
+      const next = slugify(project.slug);
+      if (next && next !== project.slug) {
+        const clash = await Project.findOne({ where: { slug: next } });
+        if (!clash) await project.update({ slug: next });
+      }
+    }
   },
 };

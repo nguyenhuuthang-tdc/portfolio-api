@@ -1,0 +1,39 @@
+services:
+  portfolio-db:
+    container_name: portfolio-db
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - 3308:${DB_PORT}
+    volumes:
+      - portfolio-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  portfolio-api:
+    container_name: portfolio-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      portfolio-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: portfolio-db
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - ./uploads:/app/uploads
+volumes:
+  portfolio-db-data:

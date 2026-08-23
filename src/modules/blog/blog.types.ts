@@ -5,7 +5,7 @@ export const CreateBlogSchema = z.object({
   slug: z.string().min(1).max(280).optional(),
   content: z.string().min(1),
   excerpt: z.string().max(500).optional(),
-  thumbnail: z.string().url().optional().nullable(),
+  thumbnail: z.string().min(1).optional().nullable(),
   status: z.enum(['draft', 'published']).default('draft'),
   categoryIds: z.array(z.number().int().positive()).optional(),
 });

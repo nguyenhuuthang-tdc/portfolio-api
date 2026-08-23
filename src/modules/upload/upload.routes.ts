@@ -51,7 +51,7 @@ const ModuleSchema = z.enum(['blog', 'projects', 'profile']);
  *                 default: 85
  *               format:
  *                 type: string
- *                 enum: [webp, jpeg, png]
+ *                 enum: [webp, jpeg, png, svg]
  *                 default: webp
  *     responses:
  *       201:
@@ -85,13 +85,13 @@ router.post(
       const width = req.body.width ? Number(req.body.width) : undefined;
       const height = req.body.height ? Number(req.body.height) : undefined;
       const quality = req.body.quality ? Number(req.body.quality) : 85;
-      const format = (req.body.format as 'webp' | 'jpeg' | 'png') || 'webp';
+      const format = (req.body.format as 'webp' | 'jpeg' | 'png' | 'svg') || 'webp';
 
       const url = await uploadService.processAndSave(
         req.file.buffer,
         req.file.originalname,
         module,
-        { width, height, quality, format }
+        { width, height, quality, format, mimetype: req.file.mimetype }
       );
 
       sendSuccess(res, { url }, 'Image uploaded', 201);

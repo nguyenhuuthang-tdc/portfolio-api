@@ -16,6 +16,15 @@ export const projectController = {
     }
   },
 
+  async getSyncIndex(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const index = await projectService.getSyncIndex();
+      sendSuccess(res, index);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async findBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const project = await projectService.findBySlug(req.params.slug as string);

@@ -6,7 +6,13 @@ import { AppError } from '../../middleware/error.middleware';
 
 const UPLOADS_BASE = path.join(__dirname, '../../../uploads');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+];
 
 function getUploadDir(module: string): string {
   const now = new Date();
@@ -28,7 +34,7 @@ export const upload = multer({
     if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new AppError('Only image files are allowed (jpeg, png, webp, gif)', 400));
+      cb(new AppError('Only image files are allowed (jpeg, png, webp, gif, svg)', 400));
     }
   },
 });
@@ -42,18 +48,34 @@ export const uploadService = {
       width?: number;
       height?: number;
       quality?: number;
-      format?: 'jpeg' | 'webp' | 'png';
+      format?: 'jpeg' | 'webp' | 'png' | 'svg';
+      mimetype?: string;
     } = {}
   ): Promise<string> {
-    const { width, height, quality = 85, format = 'webp' } = options;
+    const { width, height, quality = 85, format = 'webp', mimetype } = options;
     const dir = getUploadDir(module);
 
-    const ext = format;
+    const isSvg =
+      mimetype === 'image/svg+xml' ||
+      format === 'svg' ||
+      path.extname(originalname).toLowerCase() === '.svg';
+
     const safeName = path
       .basename(originalname, path.extname(originalname))
       .replace(/[^a-z0-9]/gi, '-')
       .toLowerCase();
-    const filename = `${safeName}-${Date.now()}.${ext}`;
+
+    if (isSvg) {
+      const filename = `${safeName}-${Date.now()}.svg`;
+      const filepath = path.join(dir, filename);
+      fs.writeFileSync(filepath, buffer);
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      return `/uploads/${module}/${year}/${month}/${filename}`;
+    }
+
+    const filename = `${safeName}-${Date.now()}.${format}`;
     const filepath = path.join(dir, filename);
 
     let sharpInstance = sharp(buffer);
@@ -64,15 +86,14 @@ export const uploadService = {
       });
     }
 
-    if (format === 'webp') {
-      await sharpInstance.webp({ quality }).toFile(filepath);
-    } else if (format === 'jpeg') {
+    if (format === 'jpeg') {
       await sharpInstance.jpeg({ quality }).toFile(filepath);
-    } else {
+    } else if (format === 'png') {
       await sharpInstance.png({ quality }).toFile(filepath);
+    } else {
+      await sharpInstance.webp({ quality }).toFile(filepath);
     }
 
-    // Return public URL path
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
