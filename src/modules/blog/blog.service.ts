@@ -13,6 +13,7 @@ import {
 } from './blog.types';
 
 import { slugify } from '../../utils/slug';
+import { stripMediaOrigins, toStoredMediaPath } from '../../utils/media-path';
 
 export const blogService = {
   async findAll(query: BlogQueryDto) {
@@ -73,9 +74,9 @@ export const blogService = {
     const blog = await Blog.create({
       title: dto.title,
       slug,
-      content: dto.content,
+      content: stripMediaOrigins(dto.content),
       excerpt: dto.excerpt || null,
-      thumbnail: dto.thumbnail || null,
+      thumbnail: toStoredMediaPath(dto.thumbnail),
       status: dto.status,
       publishedAt: dto.status === 'published' ? new Date() : null,
     });
@@ -101,6 +102,9 @@ export const blogService = {
     await blog.update({
       ...dto,
       slug: nextSlug,
+      content: dto.content !== undefined ? stripMediaOrigins(dto.content) : blog.content,
+      thumbnail:
+        dto.thumbnail !== undefined ? toStoredMediaPath(dto.thumbnail) : blog.thumbnail,
       publishedAt: wasPublished ? new Date() : blog.publishedAt,
     });
 
@@ -115,10 +119,7 @@ export const blogService = {
     const blog = await this.findById(id);
     if (blog.thumbnail) {
       try {
-        const publicPath = blog.thumbnail.startsWith('http')
-          ? new URL(blog.thumbnail).pathname
-          : blog.thumbnail;
-        uploadService.deleteFile(publicPath);
+        uploadService.deleteFile(blog.thumbnail);
       } catch {
         // non-critical
       }
