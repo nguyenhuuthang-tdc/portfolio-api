@@ -4,5 +4,6 @@ dist/
 .env.local
 .env.production
 uploads/
+mysql_data/
 .cursor/
 *.log

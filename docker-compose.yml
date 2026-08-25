@@ -1,3 +1,5 @@
+# Local: docker compose up --build
+# VPS: CI copies this file to TARGET_DIR, pull image SHA, up --no-build
 services:
   portfolio-db:
     container_name: portfolio-db
@@ -9,9 +11,9 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - 3308:${DB_PORT}
+      - 15506:${DB_PORT}
     volumes:
-      - portfolio-db-data:/var/lib/mysql
+      - ./mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
@@ -20,6 +22,7 @@ services:
 
   portfolio-api:
     container_name: portfolio-api
+    image: ${DOCKER_IMAGE_NAME:-portfolio-api}:${DOCKER_IMAGE_TAG:-local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -34,6 +37,5 @@ services:
     ports:
       - "${PORT}:${PORT}"
     volumes:
+      - ./.env:/app/.env
       - ./uploads:/app/uploads
-volumes:
-  portfolio-db-data:

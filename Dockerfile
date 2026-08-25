@@ -14,6 +14,7 @@ RUN npm run build
 
 # Stage 2: runtime
 FROM node:${NODE_VERSION} AS runner
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 ARG APP_PORT=4000
