@@ -2,6 +2,7 @@ import { Project } from './project.model';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateProjectDto, UpdateProjectDto } from './project.types';
 import { slugify } from '../../utils/slug';
+import { stripMediaOrigins } from '../../utils/media-path';
 
 export const projectService = {
   async findAll(includeArchived = false): Promise<Project[]> {
@@ -36,6 +37,7 @@ export const projectService = {
       ...dto,
       slug,
       thumbnail: null,
+      detailContent: dto.detailContent ? stripMediaOrigins(dto.detailContent) : dto.detailContent,
       completedAt: dto.completedAt ? new Date(dto.completedAt) : null,
     });
   },
@@ -51,6 +53,12 @@ export const projectService = {
       ...dto,
       slug: nextSlug,
       thumbnail: null,
+      detailContent:
+        dto.detailContent !== undefined
+          ? dto.detailContent
+            ? stripMediaOrigins(dto.detailContent)
+            : dto.detailContent
+          : project.detailContent,
       completedAt: dto.completedAt ? new Date(dto.completedAt) : project.completedAt,
     });
     return project;

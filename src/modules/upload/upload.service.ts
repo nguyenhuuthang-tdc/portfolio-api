@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { AppError } from '../../middleware/error.middleware';
+import { toUploadDiskPath } from '../../utils/media-path';
 
 const UPLOADS_BASE = path.join(__dirname, '../../../uploads');
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -101,7 +102,7 @@ export const uploadService = {
   },
 
   deleteFile(publicPath: string): void {
-    const filepath = path.join(UPLOADS_BASE, publicPath.replace('/uploads/', ''));
+    const filepath = path.join(UPLOADS_BASE, toUploadDiskPath(publicPath));
     if (fs.existsSync(filepath)) {
       fs.unlinkSync(filepath);
     }
