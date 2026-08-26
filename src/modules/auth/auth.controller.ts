@@ -4,9 +4,14 @@ import { ChangePasswordSchema, LoginSchema, SeedAdminSchema } from './auth.types
 import { sendSuccess } from '../../utils/response';
 import { AuthRequest } from '../../middleware/auth.middleware';
 
+const cookieSecure =
+  process.env.COOKIE_SECURE !== undefined
+    ? process.env.COOKIE_SECURE === "true"
+    : process.env.NODE_ENV === "production";
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: cookieSecure,
   sameSite: 'lax' as const,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
