@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { blogController } from './blog.controller';
-import { authMiddleware } from '../../middleware/auth.middleware';
 
 const router = Router();
 
@@ -44,7 +43,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/blogs:
+ * /api/v1/public/blogs:
  *   get:
  *     summary: Get all blogs (paginated)
  *     tags: [Blog]
@@ -69,11 +68,11 @@ const router = Router();
  *       200:
  *         description: Paginated list of blogs
  */
-router.get('/', blogController.findAll);
+router.get('/', blogController.findAllPublished);
 
 /**
  * @swagger
- * /api/blogs/categories:
+ * /api/v1/public/blogs/categories:
  *   get:
  *     summary: Get all blog categories
  *     tags: [Blog]
@@ -92,7 +91,7 @@ router.get('/sync-index', blogController.getSyncIndex);
 
 /**
  * @swagger
- * /api/blogs/slug/{slug}:
+ * /api/v1/public/blogs/slug/{slug}:
  *   get:
  *     summary: Get blog by slug
  *     tags: [Blog]
@@ -110,11 +109,11 @@ router.get('/sync-index', blogController.getSyncIndex);
  *       404:
  *         description: Not found
  */
-router.get('/slug/:slug', blogController.findBySlug);
+router.get('/slug/:slug', blogController.findPublishedBySlug);
 
 /**
  * @swagger
- * /api/blogs/{id}:
+ * /api/v1/public/blogs/{id}:
  *   get:
  *     summary: Get blog by ID
  *     tags: [Blog]
@@ -129,11 +128,11 @@ router.get('/slug/:slug', blogController.findBySlug);
  *       404:
  *         description: Not found
  */
-router.get('/:id', blogController.findById);
+router.get('/:id', blogController.findPublishedById);
 
 /**
  * @swagger
- * /api/blogs/{id}/view:
+ * /api/v1/public/blogs/{id}/view:
  *   post:
  *     summary: Record a blog view (fire-and-forget, anti-spam)
  *     tags: [Blog]
@@ -147,163 +146,5 @@ router.get('/:id', blogController.findById);
  *         description: View recorded
  */
 router.post('/:id/view', blogController.recordView);
-
-// Protected routes (admin)
-/**
- * @swagger
- * /api/blogs:
- *   post:
- *     summary: Create a blog post
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [title, content]
- *             properties:
- *               title: { type: string }
- *               slug: { type: string }
- *               content: { type: string }
- *               excerpt: { type: string }
- *               thumbnail: { type: string }
- *               status: { type: string, enum: [draft, published] }
- *               categoryIds:
- *                 type: array
- *                 items: { type: integer }
- *     responses:
- *       201:
- *         description: Blog created
- *       401:
- *         description: Unauthorized
- */
-router.post('/', authMiddleware, blogController.create);
-
-/**
- * @swagger
- * /api/blogs/{id}:
- *   put:
- *     summary: Update a blog post
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title: { type: string }
- *               content: { type: string }
- *               status: { type: string, enum: [draft, published] }
- *               categoryIds:
- *                 type: array
- *                 items: { type: integer }
- *     responses:
- *       200:
- *         description: Blog updated
- */
-router.put('/:id', authMiddleware, blogController.update);
-
-/**
- * @swagger
- * /api/blogs/{id}:
- *   delete:
- *     summary: Delete a blog post
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     responses:
- *       200:
- *         description: Blog deleted
- */
-router.delete('/:id', authMiddleware, blogController.delete);
-
-/**
- * @swagger
- * /api/blogs/categories:
- *   post:
- *     summary: Create a blog category
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name]
- *             properties:
- *               name: { type: string }
- *               slug: { type: string }
- *               color: { type: string }
- *               description: { type: string }
- *     responses:
- *       201:
- *         description: Category created
- */
-router.post('/categories', authMiddleware, blogController.createCategory);
-
-/**
- * @swagger
- * /api/blogs/categories/{id}:
- *   put:
- *     summary: Update a blog category
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name: { type: string }
- *               slug: { type: string }
- *               color: { type: string }
- *               description: { type: string }
- *     responses:
- *       200:
- *         description: Category updated
- */
-router.put('/categories/:id', authMiddleware, blogController.updateCategory);
-
-/**
- * @swagger
- * /api/blogs/categories/{id}:
- *   delete:
- *     summary: Delete a blog category
- *     tags: [Blog]
- *     security:
- *       - cookieAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: integer }
- *     responses:
- *       200:
- *         description: Category deleted
- */
-router.delete('/categories/:id', authMiddleware, blogController.deleteCategory);
 
 export default router;

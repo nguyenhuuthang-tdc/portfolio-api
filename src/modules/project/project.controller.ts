@@ -5,11 +5,18 @@ import { sendSuccess } from '../../utils/response';
 import { z } from 'zod';
 
 export const projectController = {
-  async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async findAll(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const all = req.query.all;
-      const includeArchived = (Array.isArray(all) ? all[0] : all) === 'true';
-      const projects = await projectService.findAll(includeArchived);
+      const projects = await projectService.findAll(false);
+      sendSuccess(res, projects);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async findAllAdmin(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const projects = await projectService.findAll(true);
       sendSuccess(res, projects);
     } catch (err) {
       next(err);
@@ -37,6 +44,15 @@ export const projectController = {
   async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const project = await projectService.findById(Number(req.params.id));
+      sendSuccess(res, project);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async findByIdAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const project = await projectService.findById(Number(req.params.id), true);
       sendSuccess(res, project);
     } catch (err) {
       next(err);

@@ -37,12 +37,18 @@ export const aboutController = {
     }
   },
 
-  async getAllSkills(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getAllSkills(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const isAdmin = (req.query.admin as string) === 'true';
-      const skills = isAdmin
-        ? await aboutService.getAllSkillsAdmin()
-        : await aboutService.getAllSkills();
+      const skills = await aboutService.getAllSkills();
+      sendSuccess(res, skills);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async getAllSkillsAdmin(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const skills = await aboutService.getAllSkillsAdmin();
       sendSuccess(res, skills);
     } catch (err) {
       next(err);

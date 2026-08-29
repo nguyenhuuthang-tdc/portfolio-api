@@ -1,6 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { upload, uploadService } from './upload.service';
-import { authMiddleware } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
 import { z } from 'zod';
 import { AppError } from '../../middleware/error.middleware';
@@ -18,7 +17,7 @@ const ModuleSchema = z.enum(['blog', 'projects', 'profile']);
 
 /**
  * @swagger
- * /api/upload/image:
+ * /api/v1/admin/uploads/image:
  *   post:
  *     summary: Upload and process an image
  *     tags: [Upload]
@@ -73,7 +72,6 @@ const ModuleSchema = z.enum(['blog', 'projects', 'profile']);
  */
 router.post(
   '/image',
-  authMiddleware,
   upload.single('file'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -103,7 +101,7 @@ router.post(
 
 /**
  * @swagger
- * /api/upload/delete:
+ * /api/v1/admin/uploads/delete:
  *   delete:
  *     summary: Delete an uploaded file
  *     tags: [Upload]
@@ -126,7 +124,6 @@ router.post(
  */
 router.delete(
   '/delete',
-  authMiddleware,
   (req: Request, res: Response, next: NextFunction): void => {
     try {
       const { url } = z.object({ url: z.string() }).parse(req.body);

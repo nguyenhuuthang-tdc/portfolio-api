@@ -20,6 +20,10 @@ export const BlogQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+// Public callers can never choose the publication status. The controller
+// always supplies `published` after parsing this schema.
+export const PublicBlogQuerySchema = BlogQuerySchema.omit({ status: true });
+
 export const CreateCategorySchema = z.object({
   name: z.string().min(1).max(100),
   slug: z.string().min(1).max(120).optional(),
@@ -32,5 +36,6 @@ export const UpdateCategorySchema = CreateCategorySchema.partial();
 export type CreateBlogDto = z.infer<typeof CreateBlogSchema>;
 export type UpdateBlogDto = z.infer<typeof UpdateBlogSchema>;
 export type BlogQueryDto = z.infer<typeof BlogQuerySchema>;
+export type PublicBlogQueryDto = z.infer<typeof PublicBlogQuerySchema>;
 export type CreateCategoryDto = z.infer<typeof CreateCategorySchema>;
 export type UpdateCategoryDto = z.infer<typeof UpdateCategorySchema>;

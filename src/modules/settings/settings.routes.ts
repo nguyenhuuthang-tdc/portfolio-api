@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { settingsController } from './settings.controller';
-import { authMiddleware } from '../../middleware/auth.middleware';
 
 const router = Router();
 
@@ -13,7 +12,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/settings/telegram:
+ * /api/v1/admin/settings/telegram:
  *   get:
  *     summary: Get Telegram notification config (token never returned)
  *     tags: [Settings]
@@ -23,11 +22,11 @@ const router = Router();
  *       200:
  *         description: Telegram config
  */
-router.get('/telegram', authMiddleware, settingsController.getTelegram);
+router.get('/telegram', settingsController.getTelegram);
 
 /**
  * @swagger
- * /api/settings/telegram:
+ * /api/v1/admin/settings/telegram:
  *   put:
  *     summary: Create or update Telegram config
  *     tags: [Settings]
@@ -48,6 +47,6 @@ router.get('/telegram', authMiddleware, settingsController.getTelegram);
  *       200:
  *         description: Saved
  */
-router.put('/telegram', authMiddleware, settingsController.updateTelegram);
+router.put('/telegram', settingsController.updateTelegram);
 
 export default router;
