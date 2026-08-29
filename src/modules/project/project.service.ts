@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Project } from './project.model';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateProjectDto, UpdateProjectDto } from './project.types';
@@ -6,26 +7,29 @@ import { stripMediaOrigins } from '../../utils/media-path';
 
 export const projectService = {
   async findAll(includeArchived = false): Promise<Project[]> {
-    const where = includeArchived ? {} : {};
+    const where = includeArchived ? {} : { status: { [Op.ne]: 'archived' } };
     return Project.findAll({
       where,
       order: [['order', 'ASC'], ['createdAt', 'DESC']],
     });
   },
 
-  async findBySlug(slug: string): Promise<Project> {
+  async findBySlug(slug: string, includeArchived = false): Promise<Project> {
     const needle = slugify(decodeURIComponent(slug));
-    const exact = await Project.findOne({ where: { slug: needle } });
+    const visibilityWhere = includeArchived ? {} : { status: { [Op.ne]: 'archived' } };
+    const exact = await Project.findOne({ where: { slug: needle, ...visibilityWhere } });
     if (exact) return exact;
-    const rows = await Project.findAll();
+    const rows = await Project.findAll({ where: visibilityWhere });
     const project = rows.find((row) => slugify(row.slug) === needle);
     if (!project) throw new AppError('Project not found', 404);
     return project;
   },
 
-  async findById(id: number): Promise<Project> {
+  async findById(id: number, includeArchived = false): Promise<Project> {
     const project = await Project.findByPk(id);
-    if (!project) throw new AppError('Project not found', 404);
+    if (!project || (!includeArchived && project.status === 'archived')) {
+      throw new AppError('Project not found', 404);
+    }
     return project;
   },
 
@@ -43,7 +47,7 @@ export const projectService = {
   },
 
   async update(id: number, dto: UpdateProjectDto): Promise<Project> {
-    const project = await this.findById(id);
+    const project = await this.findById(id, true);
     const nextSlug = dto.slug ? slugify(dto.slug) : project.slug;
     if (nextSlug !== project.slug) {
       const existing = await Project.findOne({ where: { slug: nextSlug } });
@@ -65,7 +69,7 @@ export const projectService = {
   },
 
   async delete(id: number): Promise<void> {
-    const project = await this.findById(id);
+    const project = await this.findById(id, true);
     await project.destroy();
   },
 
@@ -76,7 +80,10 @@ export const projectService = {
   },
 
   async getSyncIndex() {
-    const projects = await Project.findAll({ order: [['id', 'ASC']] });
+    const projects = await Project.findAll({
+      where: { status: { [Op.ne]: 'archived' } },
+      order: [['id', 'ASC']],
+    });
     return {
       projects: projects.map((project) => ({
         id: project.id,

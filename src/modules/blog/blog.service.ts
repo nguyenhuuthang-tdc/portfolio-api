@@ -46,23 +46,26 @@ export const blogService = {
     return { rows, total: count, page, limit };
   },
 
-  async findBySlug(slug: string): Promise<Blog> {
+  async findBySlug(slug: string, publishedOnly = false): Promise<Blog> {
     const needle = slugify(decodeURIComponent(slug));
     const include = [{ model: BlogCategory, as: 'categories', through: { attributes: [] } }];
-    const exact = await Blog.findOne({ where: { slug: needle }, include });
+    const statusWhere = publishedOnly ? { status: 'published' as const } : {};
+    const exact = await Blog.findOne({ where: { slug: needle, ...statusWhere }, include });
     if (exact) return exact;
 
-    const rows = await Blog.findAll({ include });
+    const rows = await Blog.findAll({ where: statusWhere, include });
     const blog = rows.find((row) => slugify(row.slug) === needle);
     if (!blog) throw new AppError('Blog not found', 404);
     return blog;
   },
 
-  async findById(id: number): Promise<Blog> {
+  async findById(id: number, publishedOnly = false): Promise<Blog> {
     const blog = await Blog.findByPk(id, {
       include: [{ model: BlogCategory, as: 'categories', through: { attributes: [] } }],
     });
-    if (!blog) throw new AppError('Blog not found', 404);
+    if (!blog || (publishedOnly && blog.status !== 'published')) {
+      throw new AppError('Blog not found', 404);
+    }
     return blog;
   },
 

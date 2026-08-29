@@ -4,6 +4,7 @@ import {
   CreateBlogSchema,
   UpdateBlogSchema,
   BlogQuerySchema,
+  PublicBlogQuerySchema,
   CreateCategorySchema,
   UpdateCategorySchema,
 } from './blog.types';
@@ -11,6 +12,20 @@ import { sendSuccess, sendPaginated } from '../../utils/response';
 import { hashIp, getClientIp } from '../../utils/hash';
 
 export const blogController = {
+  async findAllPublished(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const rawQuery = req.query as Record<string, string>;
+      const query = PublicBlogQuerySchema.parse(rawQuery);
+      const { rows, total, page, limit } = await blogService.findAll({
+        ...query,
+        status: 'published',
+      });
+      sendPaginated(res, rows, total, page, limit);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async findAll(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const rawQuery = req.query as Record<string, string>;
@@ -31,9 +46,27 @@ export const blogController = {
     }
   },
 
+  async findPublishedBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const blog = await blogService.findBySlug(req.params.slug as string, true);
+      sendSuccess(res, blog);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async findById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const blog = await blogService.findById(Number(req.params.id));
+      sendSuccess(res, blog);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async findPublishedById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const blog = await blogService.findById(Number(req.params.id), true);
       sendSuccess(res, blog);
     } catch (err) {
       next(err);

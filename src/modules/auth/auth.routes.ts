@@ -13,7 +13,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Admin login
  *     tags: [Auth]
@@ -58,7 +58,7 @@ router.post('/login', authController.login);
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /api/v1/auth/logout:
  *   post:
  *     summary: Logout and clear cookies
  *     tags: [Auth]
@@ -70,7 +70,7 @@ router.post('/logout', authController.logout);
 
 /**
  * @swagger
- * /api/auth/refresh:
+ * /api/v1/auth/refresh:
  *   post:
  *     summary: Refresh access token using refresh cookie
  *     tags: [Auth]
@@ -84,7 +84,7 @@ router.post('/refresh', authController.refresh);
 
 /**
  * @swagger
- * /api/auth/me:
+ * /api/v1/auth/me:
  *   get:
  *     summary: Get current authenticated user
  *     tags: [Auth]
@@ -100,7 +100,7 @@ router.get('/me', authMiddleware, authController.me);
 
 /**
  * @swagger
- * /api/auth/password:
+ * /api/v1/auth/password:
  *   put:
  *     summary: Change admin password
  *     tags: [Auth]

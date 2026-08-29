@@ -13,13 +13,7 @@ import sequelize from './config/database';
 import { swaggerSpec } from './config/swagger';
 import { errorMiddleware } from './middleware/error.middleware';
 
-import authRoutes from './modules/auth/auth.routes';
-import blogRoutes from './modules/blog/blog.routes';
-import projectRoutes from './modules/project/project.routes';
-import contactRoutes from './modules/contact/contact.routes';
-import aboutRoutes from './modules/about/about.routes';
-import uploadRoutes from './modules/upload/upload.routes';
-import settingsRoutes from './modules/settings/settings.routes';
+import apiRouter from './routes/api.router';
 
 import { startViewCountJob } from './jobs/viewCount.job';
 
@@ -48,14 +42,8 @@ app.get('/api-docs.json', (_req, res) => {
   res.json(swaggerSpec);
 });
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/blogs', blogRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/about', aboutRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/settings', settingsRoutes);
+// API routes
+app.use('/api', apiRouter);
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
