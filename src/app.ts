@@ -16,8 +16,18 @@ import { errorMiddleware } from './middleware/error.middleware';
 import apiRouter from './routes/api.router';
 
 import { startViewCountJob } from './jobs/viewCount.job';
+import { startAuthSessionCleanupJob } from './jobs/authSessionCleanup.job';
+import { runMigrations } from './migrations/runner';
 
 const app = express();
+
+const configuredTrustProxy = process.env.TRUST_PROXY;
+if (configuredTrustProxy !== undefined) {
+  const numericTrustProxy = Number(configuredTrustProxy);
+  app.set('trust proxy', Number.isNaN(numericTrustProxy) ? configuredTrustProxy : numericTrustProxy);
+} else if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // Security & parsing middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -63,7 +73,10 @@ async function bootstrap() {
       console.log('Database synced');
     }
 
+    await runMigrations();
+
     startViewCountJob();
+    startAuthSessionCleanupJob();
 
     const port = Number(process.env.PORT) || 4000;
     app.listen(port, () => {

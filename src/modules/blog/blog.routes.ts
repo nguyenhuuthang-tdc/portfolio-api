@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { blogController } from './blog.controller';
+import { viewLimiter } from '../../middleware/rate-limit.middleware';
 
 const router = Router();
 
@@ -54,9 +55,6 @@ const router = Router();
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 10 }
- *       - in: query
- *         name: status
- *         schema: { type: string, enum: [draft, published, all], default: published }
  *       - in: query
  *         name: category
  *         schema: { type: string }
@@ -145,6 +143,6 @@ router.get('/:id', blogController.findPublishedById);
  *       200:
  *         description: View recorded
  */
-router.post('/:id/view', blogController.recordView);
+router.post('/:id/view', viewLimiter, blogController.recordView);
 
 export default router;

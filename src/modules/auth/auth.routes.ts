@@ -1,8 +1,23 @@
 import { Router } from 'express';
 import { authController } from './auth.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { csrfMiddleware, refreshCsrfMiddleware } from '../../middleware/csrf.middleware';
+import {
+  csrfTokenLimiter,
+  loginLimiter,
+  passwordLimiter,
+  refreshLimiter,
+} from '../../middleware/rate-limit.middleware';
+import { trustedOriginMiddleware } from '../../middleware/trusted-origin.middleware';
 
 const router = Router();
+
+router.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
+  next();
+});
+router.use(trustedOriginMiddleware);
 
 /**
  * @swagger
@@ -49,12 +64,12 @@ const router = Router();
  *                       properties:
  *                         id: { type: integer }
  *                         email: { type: string }
- *                     accessToken:
+ *                     csrfToken:
  *                       type: string
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', authController.login);
+router.post('/login', loginLimiter, authController.login);
 
 /**
  * @swagger
@@ -66,7 +81,7 @@ router.post('/login', authController.login);
  *       200:
  *         description: Logged out
  */
-router.post('/logout', authController.logout);
+router.post('/logout', refreshLimiter, refreshCsrfMiddleware, authController.logout);
 
 /**
  * @swagger
@@ -76,11 +91,25 @@ router.post('/logout', authController.logout);
  *     tags: [Auth]
  *     responses:
  *       200:
- *         description: New access token
+ *         description: Rotated HttpOnly cookies and a new CSRF token
  *       401:
  *         description: Invalid refresh token
  */
-router.post('/refresh', authController.refresh);
+router.post('/refresh', refreshLimiter, refreshCsrfMiddleware, authController.refresh);
+
+/**
+ * @swagger
+ * /api/v1/auth/csrf:
+ *   get:
+ *     summary: Issue a CSRF token for the active refresh session
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Signed session-bound CSRF token
+ *       401:
+ *         description: No active refresh session
+ */
+router.get('/csrf', csrfTokenLimiter, authController.csrf);
 
 /**
  * @swagger
@@ -122,7 +151,13 @@ router.get('/me', authMiddleware, authController.me);
  *       400:
  *         description: Current password incorrect
  */
-router.put('/password', authMiddleware, authController.changePassword);
+router.put(
+  '/password',
+  authMiddleware,
+  csrfMiddleware,
+  passwordLimiter,
+  authController.changePassword
+);
 
 // /**
 //  * @swagger

@@ -1,76 +1,123 @@
-import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import { NextFunction, Request, Response } from 'express';
+import { AuthRequest } from '../../middleware/auth.middleware';
+import { AppError } from '../../middleware/error.middleware';
+import { createCsrfToken, isCsrfTokenValid } from '../../middleware/csrf.middleware';
+import { getClientIp, hashIp } from '../../utils/hash';
+import { sendSuccess } from '../../utils/response';
+import { sendApiError } from '../../utils/api-error';
+import { clearAuthCookies, setAuthCookies, setCsrfCookie } from './auth.cookies';
 import { authService } from './auth.service';
 import { ChangePasswordSchema, LoginSchema, SeedAdminSchema } from './auth.types';
-import { sendSuccess } from '../../utils/response';
-import { AuthRequest } from '../../middleware/auth.middleware';
 
-const cookieSecure =
-  process.env.COOKIE_SECURE !== undefined
-    ? process.env.COOKIE_SECURE === "true"
-    : process.env.NODE_ENV === "production";
+function requestMeta(req: Request) {
+  const userAgent = req.get('user-agent') || 'unknown';
+  return {
+    ipHash: hashIp(getClientIp(req)),
+    userAgentHash: crypto.createHash('sha256').update(userAgent).digest('hex'),
+  };
+}
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: cookieSecure,
-  sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
+function issueCsrf(req: Request, res: Response, sessionId: string): string {
+  const currentToken = req.cookies?.csrf_token;
+  if (currentToken && isCsrfTokenValid(currentToken, sessionId)) return currentToken;
+  const csrfToken = createCsrfToken(sessionId);
+  setCsrfCookie(res, csrfToken);
+  return csrfToken;
+}
 
 export const authController = {
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const dto = LoginSchema.parse(req.body);
-      const { user, tokens } = await authService.login(dto);
+      const { user, session, tokens } = await authService.login(dto, requestMeta(req));
+      setAuthCookies(res, tokens);
+      const csrfToken = issueCsrf(req, res, session.id);
 
-      res.cookie('access_token', tokens.accessToken, COOKIE_OPTIONS);
-      res.cookie('refresh_token', tokens.refreshToken, {
-        ...COOKIE_OPTIONS,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      sendSuccess(res, {
-        user: { id: user.id, email: user.email },
-        accessToken: tokens.accessToken,
-      }, 'Login successful');
+      sendSuccess(
+        res,
+        { user: { id: user.id, email: user.email }, csrfToken },
+        'Login successful'
+      );
     } catch (err) {
       next(err);
     }
   },
 
-  async logout(_req: Request, res: Response): Promise<void> {
-    res.clearCookie('access_token');
-    res.clearCookie('refresh_token');
-    sendSuccess(res, null, 'Logged out');
+  async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refreshToken = req.cookies?.refresh_token;
+      if (refreshToken) await authService.revokeSession(refreshToken);
+      clearAuthCookies(res);
+      sendSuccess(res, null, 'Logged out');
+    } catch (err) {
+      clearAuthCookies(res);
+      next(err);
+    }
   },
 
   async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const token = req.cookies?.refresh_token;
-      if (!token) {
-        res.status(401).json({ success: false, message: 'No refresh token' });
+      const refreshToken = req.cookies?.refresh_token;
+      if (!refreshToken) {
+        sendApiError(res, 401, {
+          code: 'UNAUTHORIZED',
+          message: 'No refresh token',
+        });
         return;
       }
-      const tokens = await authService.refreshTokens(token);
-      res.cookie('access_token', tokens.accessToken, COOKIE_OPTIONS);
-      sendSuccess(res, { accessToken: tokens.accessToken }, 'Token refreshed');
+
+      const { session, tokens } = await authService.refreshTokens(refreshToken, requestMeta(req));
+      setAuthCookies(res, tokens);
+      const csrfToken = issueCsrf(req, res, session.id);
+      sendSuccess(res, { csrfToken }, 'Token refreshed');
+    } catch (err) {
+      if (!(err instanceof AppError && err.statusCode === 409)) clearAuthCookies(res);
+      next(err);
+    }
+  },
+
+  async csrf(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const refreshToken = req.cookies?.refresh_token;
+      if (!refreshToken) {
+        sendApiError(res, 401, {
+          code: 'UNAUTHORIZED',
+          message: 'No refresh token',
+        });
+        return;
+      }
+      const session = await authService.getActiveRefreshSession(refreshToken);
+      const csrfToken = issueCsrf(req, res, session.id);
+      sendSuccess(res, { csrfToken }, 'CSRF token issued');
     } catch (err) {
       next(err);
     }
   },
 
   async me(req: AuthRequest, res: Response): Promise<void> {
-    sendSuccess(res, req.user, 'Current user');
+    if (!req.user) {
+      sendApiError(res, 401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
+      return;
+    }
+    const csrfToken = issueCsrf(req, res, req.user.sessionId);
+    sendSuccess(
+      res,
+      { id: req.user.id, email: req.user.email, csrfToken },
+      'Current user'
+    );
   },
 
   async changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: 'Unauthorized' });
+        sendApiError(res, 401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
         return;
       }
       const dto = ChangePasswordSchema.parse(req.body);
       await authService.changePassword(req.user.id, dto);
-      sendSuccess(res, null, 'Password updated');
+      clearAuthCookies(res);
+      sendSuccess(res, { reauthenticate: true }, 'Password updated; please sign in again');
     } catch (err) {
       next(err);
     }
@@ -79,7 +126,10 @@ export const authController = {
   async seedAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (process.env.NODE_ENV === 'production') {
-        res.status(403).json({ success: false, message: 'Forbidden in production' });
+        sendApiError(res, 403, {
+          code: 'FORBIDDEN',
+          message: 'Forbidden in production',
+        });
         return;
       }
       const dto = SeedAdminSchema.parse(req.body);
