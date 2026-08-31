@@ -1,5 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
 import { User } from '../modules/auth/auth.model';
+import { AuthSession } from '../modules/auth/auth-session.model';
 import { Blog } from '../modules/blog/blog.model';
 import { BlogCategory } from '../modules/blog/blog-category.model';
 import { BlogCategoryMap } from '../modules/blog/blog-category-map.model';
@@ -19,6 +20,7 @@ const sequelize = new Sequelize({
   password: process.env.DB_PASSWORD,
   models: [
     User,
+    AuthSession,
     Blog,
     BlogCategory,
     BlogCategoryMap,

@@ -3,6 +3,7 @@ import { upload, uploadService } from './upload.service';
 import { sendSuccess } from '../../utils/response';
 import { z } from 'zod';
 import { AppError } from '../../middleware/error.middleware';
+import { uploadLimiter } from '../../middleware/rate-limit.middleware';
 
 const router = Router();
 
@@ -72,6 +73,7 @@ const ModuleSchema = z.enum(['blog', 'projects', 'profile']);
  */
 router.post(
   '/image',
+  uploadLimiter,
   upload.single('file'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -124,6 +126,7 @@ router.post(
  */
 router.delete(
   '/delete',
+  uploadLimiter,
   (req: Request, res: Response, next: NextFunction): void => {
     try {
       const { url } = z.object({ url: z.string() }).parse(req.body);

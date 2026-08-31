@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { ApiErrorCode, defaultErrorCode, sendApiError } from './api-error';
 
 export function sendSuccess<T>(
   res: Response,
@@ -13,9 +14,10 @@ export function sendError(
   res: Response,
   message: string,
   statusCode = 400,
-  errors?: unknown
+  details?: unknown,
+  code: ApiErrorCode = defaultErrorCode(statusCode)
 ): Response {
-  return res.status(statusCode).json({ success: false, message, errors });
+  return sendApiError(res, statusCode, { code, message, details });
 }
 
 export function sendPaginated<T>(

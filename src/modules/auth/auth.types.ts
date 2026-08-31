@@ -22,9 +22,16 @@ export type ChangePasswordDto = z.infer<typeof ChangePasswordSchema>;
 export interface JwtPayload {
   id: number;
   email: string;
+  sessionId: string;
+  type: 'access' | 'refresh';
 }
 
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+export interface AuthRequestMeta {
+  ipHash: string;
+  userAgentHash: string;
 }

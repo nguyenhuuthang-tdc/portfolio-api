@@ -1,11 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import {
+  ApiErrorCode,
+  defaultErrorCode,
+  sendApiError,
+} from '../utils/api-error';
 
 export class AppError extends Error {
   constructor(
     public message: string,
     public statusCode: number = 400,
-    public errors?: unknown
+    public code: ApiErrorCode = defaultErrorCode(statusCode),
+    public details?: unknown
   ) {
     super(message);
     this.name = 'AppError';
@@ -19,26 +25,26 @@ export function errorMiddleware(
   _next: NextFunction
 ): void {
   if (err instanceof ZodError) {
-    res.status(422).json({
-      success: false,
+    sendApiError(res, 422, {
+      code: 'VALIDATION_ERROR',
       message: 'Validation error',
-      errors: err.issues,
+      details: err.issues,
     });
     return;
   }
 
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
-      success: false,
+    sendApiError(res, err.statusCode, {
+      code: err.code,
       message: err.message,
-      errors: err.errors,
+      details: err.details,
     });
     return;
   }
 
   console.error('[Error]', err);
-  res.status(500).json({
-    success: false,
+  sendApiError(res, 500, {
+    code: 'INTERNAL_ERROR',
     message: 'Internal server error',
   });
 }

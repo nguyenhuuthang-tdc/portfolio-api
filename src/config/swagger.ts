@@ -46,6 +46,22 @@ const options: swaggerJsdoc.Options = {
             message: { type: 'string' },
           },
         },
+        ApiErrorResponse: {
+          type: 'object',
+          required: ['success', 'error'],
+          properties: {
+            success: { type: 'boolean', enum: [false] },
+            error: {
+              type: 'object',
+              required: ['code', 'message'],
+              properties: {
+                code: { type: 'string', example: 'RATE_LIMITED' },
+                message: { type: 'string' },
+                details: {},
+              },
+            },
+          },
+        },
         Pagination: {
           type: 'object',
           properties: {
