@@ -10,6 +10,7 @@ import {
 } from './blog.types';
 import { sendSuccess, sendPaginated } from '../../utils/response';
 import { hashIp, getClientIp } from '../../utils/hash';
+import { publishWebRevalidation } from '../../integrations/web-revalidation';
 
 export const blogController = {
   async findAllPublished(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -77,6 +78,7 @@ export const blogController = {
     try {
       const dto = CreateBlogSchema.parse(req.body);
       const blog = await blogService.create(dto);
+      await publishWebRevalidation({ event: 'blog.changed', slugs: [blog.slug] });
       sendSuccess(res, blog, 'Blog created', 201);
     } catch (err) {
       next(err);
@@ -86,7 +88,13 @@ export const blogController = {
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const dto = UpdateBlogSchema.parse(req.body);
-      const blog = await blogService.update(Number(req.params.id), dto);
+      const id = Number(req.params.id);
+      const previous = await blogService.findById(id);
+      const blog = await blogService.update(id, dto);
+      await publishWebRevalidation({
+        event: 'blog.changed',
+        slugs: Array.from(new Set([previous.slug, blog.slug])),
+      });
       sendSuccess(res, blog, 'Blog updated');
     } catch (err) {
       next(err);
@@ -95,7 +103,8 @@ export const blogController = {
 
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await blogService.delete(Number(req.params.id));
+      const slug = await blogService.delete(Number(req.params.id));
+      await publishWebRevalidation({ event: 'blog.changed', slugs: [slug] });
       sendSuccess(res, null, 'Blog deleted');
     } catch (err) {
       next(err);
@@ -136,6 +145,7 @@ export const blogController = {
     try {
       const dto = CreateCategorySchema.parse(req.body);
       const category = await blogService.createCategory(dto);
+      await publishWebRevalidation({ event: 'blog-category.changed' });
       sendSuccess(res, category, 'Category created', 201);
     } catch (err) {
       next(err);
@@ -145,6 +155,7 @@ export const blogController = {
   async deleteCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       await blogService.deleteCategory(Number(req.params.id));
+      await publishWebRevalidation({ event: 'blog-category.changed' });
       sendSuccess(res, null, 'Category deleted');
     } catch (err) {
       next(err);
@@ -155,6 +166,7 @@ export const blogController = {
     try {
       const dto = UpdateCategorySchema.parse(req.body);
       const category = await blogService.updateCategory(Number(req.params.id), dto);
+      await publishWebRevalidation({ event: 'blog-category.changed' });
       sendSuccess(res, category, 'Category updated');
     } catch (err) {
       next(err);

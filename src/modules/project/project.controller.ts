@@ -3,6 +3,7 @@ import { projectService } from './project.service';
 import { CreateProjectSchema, UpdateProjectSchema } from './project.types';
 import { sendSuccess } from '../../utils/response';
 import { z } from 'zod';
+import { publishWebRevalidation } from '../../integrations/web-revalidation';
 
 export const projectController = {
   async findAll(_req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -63,6 +64,7 @@ export const projectController = {
     try {
       const dto = CreateProjectSchema.parse(req.body);
       const project = await projectService.create(dto);
+      await publishWebRevalidation({ event: 'project.changed', slugs: [project.slug] });
       sendSuccess(res, project, 'Project created', 201);
     } catch (err) {
       next(err);
@@ -72,7 +74,13 @@ export const projectController = {
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const dto = UpdateProjectSchema.parse(req.body);
-      const project = await projectService.update(Number(req.params.id), dto);
+      const id = Number(req.params.id);
+      const previous = await projectService.findById(id, true);
+      const project = await projectService.update(id, dto);
+      await publishWebRevalidation({
+        event: 'project.changed',
+        slugs: Array.from(new Set([previous.slug, project.slug])),
+      });
       sendSuccess(res, project, 'Project updated');
     } catch (err) {
       next(err);
@@ -81,7 +89,8 @@ export const projectController = {
 
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await projectService.delete(Number(req.params.id));
+      const slug = await projectService.delete(Number(req.params.id));
+      await publishWebRevalidation({ event: 'project.changed', slugs: [slug] });
       sendSuccess(res, null, 'Project deleted');
     } catch (err) {
       next(err);
@@ -92,6 +101,7 @@ export const projectController = {
     try {
       const { ids } = z.object({ ids: z.array(z.number()) }).parse(req.body);
       await projectService.reorder(ids);
+      await publishWebRevalidation({ event: 'project.changed', slugs: [] });
       sendSuccess(res, null, 'Projects reordered');
     } catch (err) {
       next(err);

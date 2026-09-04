@@ -68,9 +68,11 @@ export const projectService = {
     return project;
   },
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number): Promise<string> {
     const project = await this.findById(id, true);
+    const slug = project.slug;
     await project.destroy();
+    return slug;
   },
 
   async reorder(ids: number[]): Promise<void> {

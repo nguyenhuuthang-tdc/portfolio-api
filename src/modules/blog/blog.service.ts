@@ -118,8 +118,9 @@ export const blogService = {
     return this.findById(id);
   },
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number): Promise<string> {
     const blog = await this.findById(id);
+    const slug = blog.slug;
     if (blog.thumbnail) {
       try {
         uploadService.deleteFile(blog.thumbnail);
@@ -128,6 +129,7 @@ export const blogService = {
       }
     }
     await blog.destroy();
+    return slug;
   },
 
   async recordView(blogId: number, ipHash: string): Promise<void> {
