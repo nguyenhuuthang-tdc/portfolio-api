@@ -11,7 +11,7 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - 15506:${DB_PORT}
+      - 127.0.0.1:15506:${DB_PORT}
     volumes:
       - ./mysql_data:/var/lib/mysql
     healthcheck:
@@ -35,6 +35,6 @@ services:
     environment:
       DB_HOST: portfolio-db
     ports:
-      - "${PORT}:${PORT}"
+      - "127.0.0.1:${PORT}:${PORT}"
     volumes:
       - ./uploads:/app/uploads
