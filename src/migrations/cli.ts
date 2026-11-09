@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import sequelize from '../config/database';
+import { logger } from '../config/logger';
 import { rollbackLastMigration, runMigrations } from './runner';
 
 async function main(): Promise<void> {
@@ -20,7 +21,10 @@ async function main(): Promise<void> {
 
 main()
   .catch((error) => {
-    console.error('Migration failed:', error);
+    logger.error({
+      event: 'migration_command_failed',
+      err: error,
+    }, 'Migration command failed');
     process.exitCode = 1;
   })
   .finally(async () => {

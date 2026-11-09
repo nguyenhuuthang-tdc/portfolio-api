@@ -3,8 +3,10 @@ import { Op, literal } from 'sequelize';
 import { ViewLog } from '../modules/blog/view-log.model';
 import { Blog } from '../modules/blog/blog.model';
 import sequelize from '../config/database';
+import { logger } from '../config/logger';
 
 async function aggregateViewCounts(): Promise<void> {
+  const startedAt = process.hrtime.bigint();
   const t = await sequelize.transaction();
   try {
     // Get unprocessed view logs grouped by blogId
@@ -45,11 +47,21 @@ async function aggregateViewCounts(): Promise<void> {
     await t.commit();
 
     if (results.length > 0) {
-      console.log(`[ViewCountJob] Aggregated views for ${results.length} blogs`);
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      logger.info({
+        event: 'job_completed',
+        job: 'view_count_aggregation',
+        affected_blogs: results.length,
+        duration_ms: Number(durationMs.toFixed(3)),
+      }, 'View count aggregation completed');
     }
   } catch (err) {
     await t.rollback();
-    console.error('[ViewCountJob] Error:', err);
+    logger.error({
+      event: 'job_failed',
+      job: 'view_count_aggregation',
+      err,
+    }, 'View count aggregation failed');
   }
 }
 
@@ -58,5 +70,9 @@ export function startViewCountJob(): void {
   cron.schedule('*/15 * * * *', () => {
     aggregateViewCounts();
   });
-  console.log('[ViewCountJob] Started — running every 15 minutes');
+  logger.info({
+    event: 'job_scheduled',
+    job: 'view_count_aggregation',
+    schedule: '*/15 * * * *',
+  }, 'View count aggregation scheduled');
 }

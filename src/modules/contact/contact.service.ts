@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { Contact } from './contact.model';
 import { CreateContactDto } from './contact.types';
 import { settingsService } from '../settings/settings.service';
+import { logger } from '../../config/logger';
 
 let bot: TelegramBot | null = null;
 let cachedToken: string | null = null;
@@ -17,7 +18,10 @@ function getTelegramBot(token: string): TelegramBot {
 async function sendTelegramNotification(contact: Contact): Promise<void> {
   const config = await settingsService.getActiveTelegram();
   if (!config) {
-    console.warn('[Contact] Telegram not configured or disabled, skipping notification');
+    logger.warn({
+      event: 'telegram_notification_skipped',
+      reason: 'configuration_missing_or_disabled',
+    }, 'Telegram notification skipped');
     return;
   }
 
@@ -44,9 +48,12 @@ export const contactService = {
   async create(dto: CreateContactDto): Promise<Contact> {
     const contact = await Contact.create(dto);
 
-    sendTelegramNotification(contact).catch((err) =>
-      console.error('[Contact] Telegram notification failed:', err)
-    );
+    sendTelegramNotification(contact).catch((err) => {
+      logger.error({
+        event: 'telegram_notification_failed',
+        err,
+      }, 'Telegram notification failed');
+    });
 
     return contact;
   },

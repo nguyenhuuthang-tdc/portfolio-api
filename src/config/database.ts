@@ -31,7 +31,8 @@ const sequelize = new Sequelize({
     Skill,
     TelegramConfig,
   ],
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  // Raw SQL can contain bind values and sensitive application data.
+  logging: false,
   define: {
     underscored: true,
     timestamps: true,

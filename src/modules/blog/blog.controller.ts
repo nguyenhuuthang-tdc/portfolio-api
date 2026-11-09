@@ -11,6 +11,7 @@ import {
 import { sendSuccess, sendPaginated } from '../../utils/response';
 import { hashIp, getClientIp } from '../../utils/hash';
 import { publishWebRevalidation } from '../../integrations/web-revalidation';
+import { logger } from '../../config/logger';
 
 export const blogController = {
   async findAllPublished(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -116,7 +117,13 @@ export const blogController = {
       const ip = getClientIp(req as Parameters<typeof getClientIp>[0]);
       const ipHash = hashIp(ip);
       // Fire and forget — don't await, return immediately
-      blogService.recordView(Number(req.params.id), ipHash).catch(console.error);
+      blogService.recordView(Number(req.params.id), ipHash).catch((err) => {
+        logger.error({
+          event: 'view_record_failed',
+          request_id: res.locals.requestId,
+          err,
+        }, 'Failed to record blog view');
+      });
       res.status(200).json({ success: true });
     } catch (err) {
       next(err);

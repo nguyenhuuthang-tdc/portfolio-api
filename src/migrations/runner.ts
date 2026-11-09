@@ -2,6 +2,7 @@ import { DataTypes, QueryTypes } from 'sequelize';
 import sequelize from '../config/database';
 import { createAuthSessionsMigration } from './202608290001-create-auth-sessions';
 import { Migration } from './migration.types';
+import { logger } from '../config/logger';
 
 const MIGRATION_LOCK = 'portfolio_api_schema_migrations';
 const migrations: Migration[] = [createAuthSessionsMigration];
@@ -61,7 +62,10 @@ export async function runMigrations(): Promise<void> {
           { transaction }
         );
       });
-      console.log(`Migration applied: ${migration.name}`);
+      logger.info({
+        event: 'migration_applied',
+        migration: migration.name,
+      }, 'Database migration applied');
     }
   });
 }
@@ -88,6 +92,9 @@ export async function rollbackLastMigration(): Promise<void> {
         { transaction }
       );
     });
-    console.log(`Migration rolled back: ${migration.name}`);
+    logger.warn({
+      event: 'migration_rolled_back',
+      migration: migration.name,
+    }, 'Database migration rolled back');
   });
 }

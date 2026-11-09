@@ -42,6 +42,8 @@ export function sendApiError(
   statusCode: number,
   error: ApiErrorPayload
 ): Response {
+  res.locals.errorCode = error.code;
+
   return res.status(statusCode).json({
     success: false,
     error: {
