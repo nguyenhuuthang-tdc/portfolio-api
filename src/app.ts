@@ -10,8 +10,10 @@ import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 
 import sequelize from './config/database';
+import { logger } from './config/logger';
 import { swaggerSpec } from './config/swagger';
 import { errorMiddleware } from './middleware/error.middleware';
+import { requestLoggingMiddleware } from './middleware/request-logging.middleware';
 
 import apiRouter from './routes/api.router';
 
@@ -28,6 +30,8 @@ if (configuredTrustProxy !== undefined) {
 } else if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
+
+app.use(requestLoggingMiddleware);
 
 // Security & parsing middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
@@ -64,13 +68,13 @@ app.use(errorMiddleware);
 async function bootstrap() {
   try {
     await sequelize.authenticate();
-    console.log('Database connected successfully');
+    logger.info({ event: 'database_connected' }, 'Database connected successfully');
 
     // Schema is currently stable — skip auto-sync on every `npm run dev`.
     // Re-enable when models change: await sequelize.sync({ alter: true });
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ alter: true });
-      console.log('Database synced');
+      logger.info({ event: 'database_synced' }, 'Database synced');
     }
 
     await runMigrations();
@@ -80,12 +84,17 @@ async function bootstrap() {
 
     const port = Number(process.env.PORT) || 4000;
     app.listen(port, () => {
-      console.log(`Server running on http://localhost:${port}`);
-      console.log(`Swagger UI: http://localhost:${port}/api-docs`);
-      console.log(`Swagger JSON: http://localhost:${port}/api-docs.json`);
+      logger.info({
+        event: 'server_started',
+        port,
+        swagger_ui_enabled: process.env.NODE_ENV !== 'production',
+      }, 'Server started');
     });
   } catch (err) {
-    console.error('Failed to start server:', err);
+    logger.fatal({
+      event: 'server_start_failed',
+      err,
+    }, 'Failed to start server');
     process.exit(1);
   }
 }

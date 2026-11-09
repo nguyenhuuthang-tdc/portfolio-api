@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger } from '../config/logger';
 
 export type WebRevalidationEvent =
   | { event: 'blog.changed'; slugs: string[] }
@@ -25,9 +26,10 @@ function configuration(): { url: string; secret: string } | null {
   if (!url || !secret || secret.length < 32) {
     if (!configurationWarningReported) {
       configurationWarningReported = true;
-      console.error(
-        '[cache-revalidation] WEB_REVALIDATION_URL and a secret of at least 32 characters are both required'
-      );
+      logger.error({
+        event: 'web_revalidation_configuration_invalid',
+        reason: 'url_or_secret_missing',
+      }, 'Web revalidation configuration is invalid');
     }
     return null;
   }
@@ -38,7 +40,10 @@ function configuration(): { url: string; secret: string } | null {
   } catch {
     if (!configurationWarningReported) {
       configurationWarningReported = true;
-      console.error('[cache-revalidation] WEB_REVALIDATION_URL must be a valid HTTP(S) URL');
+      logger.error({
+        event: 'web_revalidation_configuration_invalid',
+        reason: 'url_invalid',
+      }, 'Web revalidation configuration is invalid');
     }
     return null;
   }
@@ -89,9 +94,11 @@ export async function publishWebRevalidation(payload: WebRevalidationEvent): Pro
     }
   }
 
-  console.error('[cache-revalidation] delivery failed', {
-    event: payload.event,
-    error: lastFailure,
-  });
+  logger.error({
+    event: 'web_revalidation_delivery_failed',
+    revalidation_event: payload.event,
+    failure_reason: lastFailure,
+    attempts: MAX_ATTEMPTS,
+  }, 'Web revalidation delivery failed');
   return false;
 }
